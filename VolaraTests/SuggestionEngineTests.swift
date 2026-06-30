@@ -83,4 +83,23 @@ struct SuggestionEngineTests {
         #expect(ranked.allSatisfy { $0.scan.signal == .call || $0.scan.signal == .put })
         #expect(ranked.first!.score >= ranked.last!.score)
     }
+
+    @Test func higherConfidenceSqueezeRanksAbove() {
+        // Identical band tightness; the only difference is predictive confidence.
+        let highConf = analysis(
+            symbol: "SQZH", rsi: 58, price: 108, emaFast: 11, emaSlow: 10, volumeRatio: 1,
+            lower: 100, upper: 110, bbWidth: 1, lowestBBWidth: 2,
+            macd: MACDResult(macd: 1, signal: 0.5, histogram: 0.5, histogramRising: true)
+        )
+        let lowConf = analysis(
+            symbol: "SQZL", rsi: 50, price: 105, emaFast: 10, emaSlow: 10, volumeRatio: 1,
+            lower: 100, upper: 110, bbWidth: 1, lowestBBWidth: 2, macd: .zero
+        )
+        #expect(SignalEvaluator.scannerSignal(for: highConf).signal == .squeeze)
+        #expect(SignalEvaluator.scannerSignal(for: lowConf).signal == .squeeze)
+
+        let highScore = SuggestionEngine.score(highConf, SignalEvaluator.scannerSignal(for: highConf))
+        let lowScore = SuggestionEngine.score(lowConf, SignalEvaluator.scannerSignal(for: lowConf))
+        #expect(highScore > lowScore)
+    }
 }

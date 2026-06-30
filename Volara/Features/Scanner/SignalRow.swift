@@ -42,11 +42,30 @@ struct SignalRow: View {
             volumeTag
                 .frame(width: 64, alignment: .center)
 
-            SignalBadge(signal: row.scan.signal)
-                .frame(minWidth: 96, alignment: .trailing)
+            VStack(alignment: .trailing, spacing: AppSpacing.xs) {
+                SignalBadge(signal: row.scan.signal)
+                predictiveBadge
+            }
+            .frame(minWidth: 96, alignment: .trailing)
         }
         .padding(.vertical, AppSpacing.xs)
         .contentShape(Rectangle())
+    }
+
+    /// For squeeze rows, a compact breakout/breakdown lean with confidence.
+    @ViewBuilder
+    private var predictiveBadge: some View {
+        if row.scan.signal == .squeeze {
+            let prediction = PredictiveSignalEvaluator.predict(for: analysis)
+            HStack(spacing: 2) {
+                Image(systemName: prediction.direction.systemImage)
+                    .font(.system(size: 9, weight: .bold))
+                Text(prediction.confidenceLabel)
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+            }
+            .foregroundStyle(prediction.direction.color)
+            .help("Predicted \(prediction.direction.label.lowercased()) — \(prediction.confidenceLabel) confidence")
+        }
     }
 
     private var volumeTag: some View {

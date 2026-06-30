@@ -70,9 +70,13 @@ nonisolated final class SuggestionEngine: Sendable {
         case .put:
             return 1000 + max(0, analysis.rsi - 65) * 4 + min(analysis.volumeRatio, 5) * 10
         case .squeeze:
+            // Within the squeeze tier, rank by predictive breakout/breakdown confidence
+            // first, with band tightness as a secondary tiebreak. CALL/PUT still outrank
+            // every squeeze (base 1000 vs 500-650 here).
+            let prediction = PredictiveSignalEvaluator.predict(for: analysis)
             let reference = analysis.lowestBBWidth20 * 1.05
             let tightness = reference > 0 ? max(0, 1 - analysis.bbWidthPct / reference) : 0
-            return 500 + tightness * 100
+            return 500 + prediction.confidence + tightness * 50
         case .neutral:
             return 0
         }
