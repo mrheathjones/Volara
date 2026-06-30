@@ -53,6 +53,22 @@ struct DashboardView: View {
         Task { await model.refresh(engine: env.scanEngine, watchlist: env.settings.watchlist) }
     }
 
+    private func openInCalculator(_ analysis: TickerAnalysis) {
+        let optionType: OptionType
+        switch SignalEvaluator.dashboardSignal(for: analysis) {
+        case .call: optionType = .call
+        case .put: optionType = .put
+        default: optionType = PredictiveSignalEvaluator.predict(for: analysis).direction.suggestedOption ?? .call
+        }
+        let hv = TechnicalIndicators.historicalVolatilityPercent(analysis.sparkline)
+        env.openInCalculator(
+            ticker: analysis.symbol,
+            optionType: optionType,
+            stockPrice: analysis.price,
+            volatilityPercent: hv
+        )
+    }
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
@@ -163,6 +179,11 @@ struct DashboardView: View {
                             )
                         }
                         .contextMenu {
+                            Button {
+                                openInCalculator(analysis)
+                            } label: {
+                                Label("Open in Calculator", systemImage: "function")
+                            }
                             Button(role: .destructive) {
                                 env.settings.removeFromWatchlist(analysis.symbol)
                             } label: {

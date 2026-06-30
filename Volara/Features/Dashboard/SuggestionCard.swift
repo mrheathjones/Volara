@@ -15,11 +15,27 @@ struct SuggestionCard: View {
             header
             priceRow
             reason
+            predictiveHint
             Divider()
             actions
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+        .contextMenu {
+            Button {
+                openInCalculator()
+            } label: {
+                Label("Open in Calculator", systemImage: "function")
+            }
+            Button {
+                env.settings.toggleWatchlist(analysis.symbol)
+            } label: {
+                Label(
+                    inWatchlist ? "Remove from Watchlist" : "Add to Watchlist",
+                    systemImage: inWatchlist ? "star.slash" : "star"
+                )
+            }
+        }
     }
 
     private var header: some View {
@@ -65,6 +81,37 @@ struct SuggestionCard: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    @ViewBuilder
+    private var predictiveHint: some View {
+        if scan.signal == .squeeze {
+            let prediction = PredictiveSignalEvaluator.predict(for: analysis)
+            HStack(spacing: AppSpacing.xs) {
+                Image(systemName: prediction.direction.systemImage)
+                    .font(.system(size: 11, weight: .semibold))
+                Text("Likely \(prediction.direction.label.lowercased()) \u{2022} \(prediction.confidenceLabel)")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(prediction.direction.color)
+        }
+    }
+
+    private func openInCalculator() {
+        let optionType: OptionType
+        switch scan.signal {
+        case .call: optionType = .call
+        case .put: optionType = .put
+        case .squeeze, .neutral:
+            optionType = PredictiveSignalEvaluator.predict(for: analysis).direction.suggestedOption ?? .call
+        }
+        let hv = TechnicalIndicators.historicalVolatilityPercent(analysis.sparkline)
+        env.openInCalculator(
+            ticker: analysis.symbol,
+            optionType: optionType,
+            stockPrice: analysis.price,
+            volatilityPercent: hv
+        )
     }
 
     private var actions: some View {

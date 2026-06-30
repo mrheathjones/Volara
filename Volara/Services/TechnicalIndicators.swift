@@ -107,4 +107,56 @@ nonisolated enum TechnicalIndicators {
         }
         return atrValue
     }
+
+    /// MACD(fast, slow, signal) for the latest bar. Returns nil if there aren't enough bars.
+    static func macd(_ closes: [Double], fast: Int = 12, slow: Int = 26, signalPeriod: Int = 9) -> MACDResult? {
+        guard fast > 0, slow > fast, signalPeriod > 0,
+              closes.count >= slow + signalPeriod else { return nil }
+
+        let emaFast = fullEMA(closes, period: fast)
+        let emaSlow = fullEMA(closes, period: slow)
+        let macdLine = zip(emaFast, emaSlow).map { $0 - $1 }
+        let signalLine = fullEMA(macdLine, period: signalPeriod)
+
+        guard macdLine.count >= 2, signalLine.count >= 2,
+              let macd = macdLine.last, let signal = signalLine.last else { return nil }
+
+        let histogram = macd - signal
+        let prevHistogram = macdLine[macdLine.count - 2] - signalLine[signalLine.count - 2]
+        return MACDResult(
+            macd: macd,
+            signal: signal,
+            histogram: histogram,
+            histogramRising: histogram > prevHistogram
+        )
+    }
+
+    /// Annualized historical (realized) volatility from daily closes, as a percent.
+    /// A reasonable default for the options calculator when no live IV is available.
+    static func historicalVolatilityPercent(_ closes: [Double]) -> Double? {
+        guard closes.count >= 10 else { return nil }
+        var logReturns: [Double] = []
+        for i in 1..<closes.count where closes[i - 1] > 0 && closes[i] > 0 {
+            logReturns.append(log(closes[i] / closes[i - 1]))
+        }
+        guard logReturns.count >= 2 else { return nil }
+        let mean = logReturns.reduce(0, +) / Double(logReturns.count)
+        let variance = logReturns.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(logReturns.count - 1)
+        let annualized = variance.squareRoot() * (252.0).squareRoot()
+        return annualized * 100
+    }
+
+    /// Full-length EMA: one value per input bar, seeded with the first value.
+    /// Used by `macd` so the fast and slow lines stay index-aligned.
+    private static func fullEMA(_ values: [Double], period: Int) -> [Double] {
+        guard let first = values.first, period > 0 else { return [] }
+        let multiplier = 2.0 / (Double(period) + 1.0)
+        var result: [Double] = [first]
+        var previous = first
+        for index in 1..<values.count {
+            previous = (values[index] - previous) * multiplier + previous
+            result.append(previous)
+        }
+        return result
+    }
 }

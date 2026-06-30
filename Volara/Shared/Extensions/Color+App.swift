@@ -26,3 +26,13 @@ extension OptionType {
         }
     }
 }
+
+extension BreakoutDirection {
+    var color: Color {
+        switch self {
+        case .breakout: return .green
+        case .breakdown: return .red
+        case .neutral: return .blue
+        }
+    }
+}

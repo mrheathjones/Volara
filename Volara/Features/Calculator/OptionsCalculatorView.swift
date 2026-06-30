@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct OptionsCalculatorView: View {
+    @Environment(AppEnvironment.self) private var env
     @State private var model = CalculatorModel()
 
     private var deltaColor: Color {
@@ -13,6 +14,7 @@ struct OptionsCalculatorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.xxl) {
+                tickerBanner
                 inputsSection
                 resultSection
                 metricsGrid
@@ -24,6 +26,47 @@ struct OptionsCalculatorView: View {
         }
         .background(Color.appBackground)
         .navigationTitle("Calculator")
+        .onAppear { consumePreset() }
+    }
+
+    // MARK: - Ticker banner
+
+    @ViewBuilder
+    private var tickerBanner: some View {
+        if !model.ticker.isEmpty {
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: "chart.xyaxis.line")
+                    .foregroundStyle(.blue)
+                Text(model.ticker)
+                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.primary)
+                Text(TickerCatalog.companyName(for: model.ticker))
+                    .font(.appCaption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if model.isLoadingTicker {
+                    ProgressView().controlSize(.small)
+                }
+                Spacer()
+                Button("Clear") { model.ticker = "" }
+                    .buttonStyle(.borderless)
+                    .font(.appCaption)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+        }
+    }
+
+    private func consumePreset() {
+        guard let preset = env.pendingCalculatorPreset else { return }
+        env.pendingCalculatorPreset = nil
+        model.ticker = preset.ticker
+        model.optionType = preset.optionType
+        if let price = preset.stockPrice {
+            model.applyPrice(price, strike: preset.strike, volatilityPercent: preset.volatilityPercent)
+        } else {
+            Task { await model.loadTicker(preset.ticker, service: env.stockService) }
+        }
     }
 
     // MARK: - Inputs

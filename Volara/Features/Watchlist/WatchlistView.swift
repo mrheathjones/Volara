@@ -27,6 +27,23 @@ struct WatchlistView: View {
         return query
     }
 
+    @ViewBuilder
+    private func rowContextMenu(for symbol: String) -> some View {
+        Button {
+            env.openInCalculator(ticker: symbol, optionType: .call)
+        } label: {
+            Label("Open in Calculator", systemImage: "function")
+        }
+        Button {
+            env.settings.toggleWatchlist(symbol)
+        } label: {
+            Label(
+                env.settings.isInWatchlist(symbol) ? "Remove from Watchlist" : "Add to Watchlist",
+                systemImage: env.settings.isInWatchlist(symbol) ? "star.slash" : "star"
+            )
+        }
+    }
+
     var body: some View {
         List {
             Section {
@@ -39,6 +56,7 @@ struct WatchlistView: View {
                         WatchlistRow(symbol: symbol, inWatchlist: true) {
                             env.settings.toggleWatchlist(symbol)
                         }
+                        .contextMenu { rowContextMenu(for: symbol) }
                     }
                 }
             } header: {
@@ -58,6 +76,7 @@ struct WatchlistView: View {
                     WatchlistRow(symbol: symbol, inWatchlist: env.settings.isInWatchlist(symbol)) {
                         env.settings.toggleWatchlist(symbol)
                     }
+                    .contextMenu { rowContextMenu(for: symbol) }
                 }
             } header: {
                 SectionHeader(title: "Browse Tickers")

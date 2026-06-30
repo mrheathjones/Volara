@@ -118,6 +118,7 @@ nonisolated final class StockDataService: Sendable {
         let widthSeries = TechnicalIndicators.bbWidthSeries(closes)
         let lowestBBWidth20 = widthSeries.suffix(20).min() ?? bbWidthPct
         let atr = TechnicalIndicators.atr(highs: series.highs, lows: series.lows, closes: closes) ?? 0
+        let macd = TechnicalIndicators.macd(closes) ?? .zero
 
         let volume = series.volumes.last ?? 0
         let avgWindow = series.volumes.suffix(20)
@@ -140,7 +141,8 @@ nonisolated final class StockDataService: Sendable {
             lowestBBWidth20: lowestBBWidth20,
             atr: atr,
             volume: volume,
-            avgVolume: avgVolume
+            avgVolume: avgVolume,
+            macd: macd
         )
     }
 }

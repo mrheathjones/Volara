@@ -16,6 +16,7 @@ nonisolated struct TickerAnalysis: Identifiable, Sendable {
     let atr: Double
     let volume: Double
     let avgVolume: Double
+    let macd: MACDResult
 
     var id: String { symbol }
 

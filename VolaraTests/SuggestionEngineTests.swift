@@ -12,7 +12,8 @@ struct SuggestionEngineTests {
         lower: Double,
         upper: Double,
         bbWidth: Double = 8,
-        lowestBBWidth: Double = 2
+        lowestBBWidth: Double = 2,
+        macd: MACDResult = .zero
     ) -> TickerAnalysis {
         TickerAnalysis(
             symbol: symbol,
@@ -29,7 +30,8 @@ struct SuggestionEngineTests {
             lowestBBWidth20: lowestBBWidth,
             atr: 1,
             volume: volumeRatio * 100,
-            avgVolume: 100
+            avgVolume: 100,
+            macd: macd
         )
     }
 

@@ -5,9 +5,23 @@ struct SignalDetailView: View {
     let row: ScannerRow
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppEnvironment.self) private var env
 
     private var analysis: TickerAnalysis { row.analysis }
     private var scan: ScanSignal { row.scan }
+
+    private var predictive: PredictiveSignal { PredictiveSignalEvaluator.predict(for: analysis) }
+
+    /// The predictive read is most useful where the base signal is non-directional.
+    private var showsPredictive: Bool { scan.signal == .squeeze || scan.signal == .neutral }
+
+    private var calculatorOptionType: OptionType {
+        switch scan.signal {
+        case .call: return .call
+        case .put: return .put
+        case .squeeze, .neutral: return predictive.direction.suggestedOption ?? .call
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,10 +32,13 @@ struct SignalDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.xxl) {
                     whySection
+                    if showsPredictive {
+                        predictiveSection
+                    }
                     atrSection
                     strikeSection
                     expirationSection
-                    tradingViewButton
+                    actionButtons
                 }
                 .padding(AppSpacing.xxl)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -164,18 +181,95 @@ struct SignalDetailView: View {
         }
     }
 
-    private var tradingViewButton: some View {
-        Button {
-            openInTradingView()
-        } label: {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "chart.xyaxis.line")
-                Text("Open in TradingView")
+    private var predictiveSection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            SectionHeader(title: scan.signal == .squeeze ? "Squeeze Prediction" : "Predictive Signal")
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: predictive.direction.systemImage)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(predictive.direction.color)
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text(predictiveHeadline)
+                            .font(.bodyText.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text("Confidence \(predictive.confidenceLabel)")
+                            .font(.appCaption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+
+                ProgressView(value: predictive.confidence, total: 100)
+                    .tint(predictive.direction.color)
+
+                ForEach(Array(predictive.rationale.enumerated()), id: \.offset) { _, reason in
+                    HStack(alignment: .top, spacing: AppSpacing.sm) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 5))
+                            .foregroundStyle(predictive.direction.color)
+                            .padding(.top, 7)
+                        Text(reason)
+                            .font(.appCaption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Text("Heuristic bias from trend, MACD, RSI, and Bollinger position — not a guarantee.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, AppSpacing.xs)
             }
-            .frame(maxWidth: .infinity)
+            .cardStyle()
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+    }
+
+    private var predictiveHeadline: String {
+        switch predictive.direction {
+        case .breakout: return "Leaning breakout — bias to calls"
+        case .breakdown: return "Leaning breakdown — bias to puts"
+        case .neutral: return "No clear directional edge yet"
+        }
+    }
+
+    private var actionButtons: some View {
+        VStack(spacing: AppSpacing.sm) {
+            Button {
+                openInCalculator()
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "function")
+                    Text("Open in Calculator")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            Button {
+                openInTradingView()
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "chart.xyaxis.line")
+                    Text("Open in TradingView")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+    }
+
+    private func openInCalculator() {
+        let hv = TechnicalIndicators.historicalVolatilityPercent(analysis.sparkline)
+        env.openInCalculator(
+            ticker: analysis.symbol,
+            optionType: calculatorOptionType,
+            stockPrice: analysis.price,
+            volatilityPercent: hv
+        )
+        dismiss()
     }
 
     private func openInTradingView() {
