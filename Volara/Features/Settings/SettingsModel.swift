@@ -21,12 +21,22 @@ final class SettingsModel {
         didSet { persistence.accountSize = accountSize }
     }
 
+    var autoRefreshEnabled: Bool {
+        didSet { persistence.autoRefreshEnabled = autoRefreshEnabled }
+    }
+
+    var autoRefreshMinutes: Int {
+        didSet { persistence.autoRefreshMinutes = autoRefreshMinutes }
+    }
+
     init(persistence: PersistenceService) {
         self.persistence = persistence
         self.watchlistText = persistence.watchlist.joined(separator: ", ")
         self.defaultContracts = persistence.defaultContracts
         self.riskPerTradePct = persistence.riskPerTradePct
         self.accountSize = persistence.accountSize
+        self.autoRefreshEnabled = persistence.autoRefreshEnabled
+        self.autoRefreshMinutes = persistence.autoRefreshMinutes
     }
 
     var watchlist: [String] {
@@ -48,5 +58,35 @@ final class SettingsModel {
         guard premium > 0 else { return 0 }
         let budget = accountSize * riskPerTradePct / 100.0
         return Int((budget / (premium * 100)).rounded(.down))
+    }
+
+    // MARK: - Watchlist editing
+
+    func isInWatchlist(_ symbol: String) -> Bool {
+        watchlist.contains(normalize(symbol))
+    }
+
+    func addToWatchlist(_ symbol: String) {
+        let sym = normalize(symbol)
+        guard !sym.isEmpty, !watchlist.contains(sym) else { return }
+        // Setting watchlistText triggers its didSet, which persists the parsed list.
+        watchlistText = (watchlist + [sym]).joined(separator: ", ")
+    }
+
+    func removeFromWatchlist(_ symbol: String) {
+        let sym = normalize(symbol)
+        watchlistText = watchlist.filter { $0 != sym }.joined(separator: ", ")
+    }
+
+    func toggleWatchlist(_ symbol: String) {
+        if isInWatchlist(symbol) {
+            removeFromWatchlist(symbol)
+        } else {
+            addToWatchlist(symbol)
+        }
+    }
+
+    private func normalize(_ symbol: String) -> String {
+        symbol.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 }

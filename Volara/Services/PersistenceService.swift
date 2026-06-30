@@ -1,7 +1,9 @@
 import Foundation
 
 nonisolated final class PersistenceService: Sendable {
-    private var defaults: UserDefaults { UserDefaults.standard }
+    // UserDefaults is thread-safe; nonisolated(unsafe) lets this Sendable type hold an
+    // injectable instance (real .standard in the app, a throwaway suite in tests).
+    private nonisolated(unsafe) let defaults: UserDefaults
 
     private enum Keys {
         static let completedLessons = "completedLessons"
@@ -9,9 +11,13 @@ nonisolated final class PersistenceService: Sendable {
         static let defaultContracts = "defaultContracts"
         static let riskPerTradePct = "riskPerTradePct"
         static let accountSize = "accountSize"
+        static let autoRefreshEnabled = "autoRefreshEnabled"
+        static let autoRefreshMinutes = "autoRefreshMinutes"
     }
 
-    init() {}
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     // MARK: - Journal
 
@@ -107,6 +113,26 @@ nonisolated final class PersistenceService: Sendable {
         }
         set {
             defaults.set(newValue, forKey: Keys.accountSize)
+        }
+    }
+
+    var autoRefreshEnabled: Bool {
+        get {
+            if defaults.object(forKey: Keys.autoRefreshEnabled) == nil { return true }
+            return defaults.bool(forKey: Keys.autoRefreshEnabled)
+        }
+        set {
+            defaults.set(newValue, forKey: Keys.autoRefreshEnabled)
+        }
+    }
+
+    var autoRefreshMinutes: Int {
+        get {
+            if defaults.object(forKey: Keys.autoRefreshMinutes) == nil { return 15 }
+            return defaults.integer(forKey: Keys.autoRefreshMinutes)
+        }
+        set {
+            defaults.set(newValue, forKey: Keys.autoRefreshMinutes)
         }
     }
 }

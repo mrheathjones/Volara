@@ -2,11 +2,12 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(AppEnvironment.self) private var environment
-    @State private var selection: SidebarItem? = .dashboard
 
     var body: some View {
+        @Bindable var env = environment
+
         NavigationSplitView {
-            List(SidebarItem.allCases, selection: $selection) { item in
+            List(SidebarItem.allCases, selection: $env.selection) { item in
                 NavigationLink(value: item) {
                     Label(item.title, systemImage: item.systemImage)
                 }
@@ -14,7 +15,7 @@ struct RootView: View {
             .navigationTitle("Volara")
         } detail: {
             NavigationStack {
-                detailView(for: selection ?? .dashboard)
+                detailView(for: environment.selection ?? .dashboard)
             }
         }
     }
@@ -24,6 +25,7 @@ struct RootView: View {
         switch item {
         case .dashboard: DashboardView()
         case .scanner: SignalScannerView()
+        case .watchlist: WatchlistView()
         case .calculator: OptionsCalculatorView()
         case .learn: LearnView()
         case .journal: TradeJournalView()

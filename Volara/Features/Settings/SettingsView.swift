@@ -29,11 +29,35 @@ struct SettingsView: View {
                 .lineLimit(3...8)
                 .font(.bodyText)
 
-                Text("Enter ticker symbols separated by commas, spaces, or new lines. These drive the Signal Scanner.")
+                Text("Manage your watchlist on the Watchlist tab, or bulk-edit here: symbols separated by commas, spaces, or new lines.")
                     .font(.appCaption)
                     .foregroundStyle(.secondary)
             } header: {
                 SectionHeader(title: "Scanner Watchlist")
+            }
+
+            Section {
+                Toggle(isOn: $settings.autoRefreshEnabled) {
+                    Text("Auto-refresh while open")
+                        .font(.bodyText)
+                }
+
+                Picker(selection: $settings.autoRefreshMinutes) {
+                    Text("Every 5 minutes").tag(5)
+                    Text("Every 15 minutes").tag(15)
+                    Text("Every 30 minutes").tag(30)
+                    Text("Every 60 minutes").tag(60)
+                } label: {
+                    Text("Scan interval")
+                        .font(.bodyText)
+                }
+                .disabled(!settings.autoRefreshEnabled)
+
+                Text("The Dashboard auto-scans the market for CALL, PUT, and SQUEEZE setups on this interval while Volara is open. Background scanning with notifications when the app is closed is planned for a future update.")
+                    .font(.appCaption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                SectionHeader(title: "Scanning & Suggestions")
             }
 
             Section {

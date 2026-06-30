@@ -10,42 +10,43 @@ final class DashboardModel {
         case failed(String)
     }
 
-    private(set) var analyses: [TickerAnalysis] = []
+    /// Analyses for the user's watchlist symbols, in watchlist order.
+    private(set) var watchlistCards: [TickerAnalysis] = []
+    /// Ranked actionable opportunities from the broad market scan.
+    private(set) var suggestions: [Suggestion] = []
     private(set) var loadState: LoadState = .idle
+    private(set) var isRefreshing = false
+    private(set) var lastUpdated: Date?
 
-    func refresh(using service: StockDataService) async {
-        loadState = .loading
+    var hasData: Bool { !watchlistCards.isEmpty || !suggestions.isEmpty }
 
-        let symbols = TickerCatalog.dashboardSymbols
+    var isLoading: Bool {
+        if case .loading = loadState { return true }
+        return false
+    }
 
-        let results: [String: TickerAnalysis] = await withTaskGroup(
-            of: (String, TickerAnalysis?).self
-        ) { group in
-            for symbol in symbols {
-                group.addTask {
-                    let analysis = try? await service.analyze(
-                        symbol: symbol,
-                        companyName: TickerCatalog.companyName(for: symbol)
-                    )
-                    return (symbol, analysis)
-                }
-            }
+    var failureMessage: String? {
+        if case .failed(let message) = loadState { return message }
+        return nil
+    }
 
-            var collected: [String: TickerAnalysis] = [:]
-            for await (symbol, analysis) in group {
-                if let analysis {
-                    collected[symbol] = analysis
-                }
-            }
-            return collected
-        }
+    /// Scans the union of the market universe and the watchlist in a single pass, then
+    /// derives both dashboard sections from the result (avoids fetching shared tickers twice).
+    func refresh(engine: SuggestionEngine, watchlist: [String], suggestionLimit: Int = 6) async {
+        isRefreshing = true
+        defer { isRefreshing = false }
 
-        // Preserve dashboardSymbols order, dropping failures.
-        let ordered = symbols.compactMap { results[$0] }
+        if !hasData { loadState = .loading }
 
-        analyses = ordered
+        let normalizedWatchlist = watchlist.map { $0.uppercased() }
+        let universe = TickerCatalog.marketUniverse + normalizedWatchlist
+        let analyses = await engine.analyzeAll(symbols: universe)
 
-        if ordered.isEmpty {
+        watchlistCards = normalizedWatchlist.compactMap { analyses[$0] }
+        suggestions = engine.rankedSuggestions(from: Array(analyses.values), limit: suggestionLimit)
+        lastUpdated = Date()
+
+        if analyses.isEmpty {
             loadState = .failed("Couldn't load market data. Check your connection and try again.")
         } else {
             loadState = .loaded
